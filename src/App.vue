@@ -4,16 +4,29 @@
       <h1>FlipBOOM</h1>
     </header>
     <div id="mine_field">
-      <div class="square" :class="{ flipped: square.flipped || lost || won, flagged: square.flagged, won: won && square.flagged, lost: lost && square.bomb }" v-for="(square, index) in squares" @click.left="flip(index)" @click.right.prevent="flag(index)">
-        <div class="bomb" :class="{ exploded: square.exploded }" v-if="(square.flipped || lost) && square.bomb">
+      <div
+        class="square"
+        :class="{
+          flipped: square.flipped || lost || won,
+          flagged: square.flagged,
+          won: won && square.flagged,
+          lost: lost && square.bomb,
+        }"
+        v-for="(square, index) in squares"
+        @click.left="flip(index)"
+        @click.right.prevent="flag(index)"
+      >
+        <div
+          class="bomb"
+          :class="{ exploded: square.exploded }"
+          v-if="(square.flipped || lost) && square.bomb"
+        >
           💣
         </div>
-        <div v-else-if="(square.flipped || lost)">
+        <div v-else-if="square.flipped || lost">
           {{ adjacentBombs(index) !== 0 ? adjacentBombs(index) : "&nbsp;" }}
         </div>
-        <div class="flag" v-else-if="square.flagged">
-          ⛳️
-        </div>
+        <div class="flag" v-else-if="square.flagged">⛳️</div>
         <div v-else>&nbsp;</div>
       </div>
     </div>
@@ -22,104 +35,103 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup>
+import { ref, computed, onMounted } from "vue";
 
-export default defineComponent({
-  name: 'app',
-  data() {
-    return {
-      squares: [
-        {
-          bomb: false,
-          flagged: false,
-          flipped: false,
-          exploded: false
-        }
-      ],
-      numBombs: 8,
-      lost: false
-    }
+const squares = ref([
+  {
+    bomb: false,
+    flagged: false,
+    flipped: false,
+    exploded: false,
   },
-  mounted() {
-    this.initialize()
-  },
-  computed: {
-    won() {
-      let numFlagged = this.squares.filter(square => square.flagged).length
-      // console.log(numFlagged);
-      return numFlagged === this.numBombs
-    }
-  },
-  methods: {
-    initialize() {
-      this.lost = false
-      this.squares = []
-      for (let i = 0; i < 64; i++) {
-        this.squares.push({
-          bomb: false,
-          flagged: false,
-          flipped: false,
-          exploded: false,
-        })
-      }
-      let bombs = 0;
-      while (bombs < this.numBombs) {
-        let ran = Math.floor(Math.random() * 64)
-        if (!this.squares[ran].bomb) {
-          this.squares[ran].bomb = true
-          bombs++
-        }
-      }
-    },
-    flip(index: number) {
-      if (this.squares[index].flipped || this.squares[index].flagged) {
-        return false;
-      }
-      if (this.squares[index].bomb) {
-        this.lost = true
-        this.squares[index].exploded = true
-      } else {
-        this.squares[index].flipped = true
-        if (this.adjacentBombs(index) == 0) {
-          let adjacent = this.adjacent(index)
-          adjacent.forEach((adjacentIndex) => {
-            if (this.squares[adjacentIndex]) {
-              if (!this.squares[adjacentIndex].bomb) {
-                this.flip(adjacentIndex)
-              }
-            }
-          })
-        }
-      }
-      return
-      console.log(this.won);
-      
-    },
-    flag(index: number) {
-      this.squares[index].flagged = !this.squares[index].flagged
-    },
-    adjacentBombs(index: number) {
-      let adjacent = this.adjacent(index)
-      let adjacentBombs = 0
-      adjacent.forEach(adjacentIndex => {
-        if (this.squares[adjacentIndex] && this.squares[adjacentIndex].bomb) {
-          adjacentBombs++
-        }
-      })
-      return adjacentBombs
-    },
-    adjacent(index: number) {
-      if (index % 8 === 0) {
-        return [index, index - 8, index - 7, index + 1, index + 8, index + 9]
-      }
-      if ((index - 7) % 8 === 0) {
-        return [index, index - 1, index - 8, index - 9, index + 7, index + 8]
-      }
-      return [index, index - 1, index - 8, index - 9, index - 7, index + 1, index + 7, index + 8, index + 9]
+]);
+const numBombs = ref(8);
+const lost = ref(false);
+
+onMounted(() => {
+  initialize();
+});
+
+const won = computed(() => {
+  let numFlagged = squares.value.filter((square) => square.flagged).length;
+  // console.log(numFlagged)
+  return numFlagged === numBombs.value;
+});
+function initialize() {
+  lost.value = false;
+  squares.value = [];
+  for (let i = 0; i < 64; i++) {
+    squares.value.push({
+      bomb: false,
+      flagged: false,
+      flipped: false,
+      exploded: false,
+    });
+  }
+  let bombs = 0;
+  while (bombs < numBombs.value) {
+    let ran = Math.floor(Math.random() * 64);
+    if (!squares.value[ran].bomb) {
+      squares.value[ran].bomb = true;
+      bombs++;
     }
   }
-})
+}
+function flip(index) {
+  if (squares.value[index].flipped || squares.value[index].flagged) {
+    return false;
+  }
+  if (squares.value[index].bomb) {
+    lost.value = true;
+    squares.value[index].exploded = true;
+  } else {
+    squares.value[index].flipped = true;
+    if (adjacentBombs(index) == 0) {
+      let adjacent = adjacentSquares(index);
+      adjacent.forEach((adjacentIndex) => {
+        if (squares.value[adjacentIndex]) {
+          if (!squares.value[adjacentIndex].bomb) {
+            flip(adjacentIndex);
+          }
+        }
+      });
+    }
+  }
+  return;
+}
+function flag(index) {
+  squares.value[index].flagged = !squares.value[index].flagged;
+}
+function adjacentSquares(index) {
+  if (index % 8 === 0) {
+    return [index, index - 8, index - 7, index + 1, index + 8, index + 9];
+  }
+  if ((index - 7) % 8 === 0) {
+    return [index, index - 1, index - 8, index - 9, index + 7, index + 8];
+  }
+  return [
+    index,
+    index - 1,
+    index - 8,
+    index - 9,
+    index - 7,
+    index + 1,
+    index + 7,
+    index + 8,
+    index + 9,
+  ];
+}
+function adjacentBombs(index) {
+  let adjacent = adjacentSquares(index);
+  let adjacentBombs = 0;
+  adjacent.forEach((adjacentIndex) => {
+    if (squares.value[adjacentIndex] && squares.value[adjacentIndex].bomb) {
+      adjacentBombs++;
+    }
+  });
+  return adjacentBombs;
+}
 </script>
 
 <style scoped>
@@ -147,7 +159,8 @@ export default defineComponent({
 .flipped {
   background-color: white;
 }
-.flagged, .flipped {
+.flagged,
+.flipped {
   cursor: default;
 }
 .won {
